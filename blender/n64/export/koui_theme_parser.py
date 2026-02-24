@@ -200,6 +200,28 @@ class KouiThemeParser:
         color = self._get_nested_property(style, ['color', 'text'], default)
         return color if color else default
 
+    def get_shadow_color(self, selector: str, default: str = '#00000000') -> str:
+        """Get textShadow.color for a selector as hex string."""
+        style = self.get_style(selector)
+        color = self._get_nested_property(style, ['textShadow', 'color'], default)
+        return color if color else default
+
+    def get_shadow_offset_x(self, selector: str, default: int = 0) -> int:
+        """Get textShadow.offsetX for a selector."""
+        style = self.get_style(selector)
+        try:
+            return int(self._get_nested_property(style, ['textShadow', 'offsetX'], default))
+        except (ValueError, TypeError):
+            return default
+
+    def get_shadow_offset_y(self, selector: str, default: int = 0) -> int:
+        """Get textShadow.offsetY for a selector."""
+        style = self.get_style(selector)
+        try:
+            return int(self._get_nested_property(style, ['textShadow', 'offsetY'], default))
+        except (ValueError, TypeError):
+            return default
+
     @staticmethod
     def parse_hex_color(hex_color: str) -> tuple:
         """Parse Koui hex color (#RRGGBB or #RRGGBBAA) to (r, g, b, a) tuple (0-255)."""

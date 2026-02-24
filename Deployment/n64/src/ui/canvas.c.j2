@@ -94,6 +94,10 @@ typedef struct {{
     uint8_t style_id;   // Font style ID for text color (from Koui theme)
     uint8_t font_id;    // Font ID for font size variant (from Koui theme)
     bool visible;
+    bool shadow;        // Whether to draw a drop shadow
+    int8_t shadow_dx;   // Shadow X offset in pixels
+    int8_t shadow_dy;   // Shadow Y offset in pixels
+    uint8_t shadow_style_id; // Font style ID for shadow color (from Koui theme)
 }} UILabelDef;
 #endif
 
@@ -197,6 +201,10 @@ static void load_labels(const UILabelDef *defs, int count) {{
             // Convert font index to rdpq font ID
             label->font_id = fonts_get_rdpq_id(def->font_id);
             label->visible = def->visible;
+            label->shadow = def->shadow;
+            label->shadow_dx = def->shadow_dx;
+            label->shadow_dy = def->shadow_dy;
+            label->shadow_style_id = def->shadow_style_id;
             ui_label_add(label);
             if (g_canvas_label_count < UI_LABEL_COUNT) {{
                 g_canvas_labels[g_canvas_label_count++] = label;
@@ -679,6 +687,16 @@ void canvas_render(void)
 
         // Use style_id from Koui theme for text color
         rdpq_textparms_t parms = {{ .style_id = label->style_id }};
+
+        // Draw shadow pass first (behind main text)
+        if (label->shadow) {{
+            rdpq_textparms_t shadow_parms = {{ .style_id = label->shadow_style_id }};
+            rdpq_text_print(&shadow_parms, label->font_id,
+                label->pos_x + label->shadow_dx,
+                label->pos_y + label->baseline_offset + label->shadow_dy,
+                label->text);
+        }}
+
         rdpq_text_print(&parms, label->font_id, label->pos_x, label->pos_y + label->baseline_offset, label->text);
     }}
 #endif

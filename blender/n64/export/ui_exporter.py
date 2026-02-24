@@ -358,10 +358,25 @@ def _handle_label(exporter, elem, final_x, final_y, labels, parent_path: str = "
     font_size = DEFAULT_FONT_SIZE
     text_color = DEFAULT_TEXT_COLOR
 
+    # Shadow defaults (no shadow)
+    shadow = False
+    shadow_dx = 0
+    shadow_dy = 0
+    shadow_style_id = 0
+
     if exporter.theme_parser:
         font_size = exporter.theme_parser.get_font_size(tid, DEFAULT_FONT_SIZE)
         color_hex = exporter.theme_parser.get_text_color(tid, '#dddddd')
         text_color = KouiThemeParser.parse_hex_color(color_hex)
+
+        shadow_hex = exporter.theme_parser.get_shadow_color(tid, '#00000000')
+        shadow_color = KouiThemeParser.parse_hex_color(shadow_hex)
+        shadow_dx = exporter.theme_parser.get_shadow_offset_x(tid, 0)
+        shadow_dy = exporter.theme_parser.get_shadow_offset_y(tid, 0)
+        # Shadow is active only when alpha > 0 and at least one offset is non-zero
+        shadow = (shadow_color[3] > 0 and (shadow_dx != 0 or shadow_dy != 0))
+        if shadow:
+            shadow_style_id = _get_or_create_color_style(exporter, shadow_color)
 
     exporter.font_sizes.add(font_size)
     style_id = _get_or_create_color_style(exporter, text_color)
@@ -384,6 +399,10 @@ def _handle_label(exporter, elem, final_x, final_y, labels, parent_path: str = "
         'font_size': font_size,
         'text_color': text_color,
         'style_id': style_id,
+        'shadow': shadow,
+        'shadow_dx': shadow_dx,
+        'shadow_dy': shadow_dy,
+        'shadow_style_id': shadow_style_id,
     }
     labels.append(label_data)
 
@@ -726,7 +745,11 @@ def write_canvas_c(exporter):
             style_id = label.get('style_id', 0)
             font_id = label.get('font_id', 0)
             baseline_offset = label.get('baseline_offset', 12)
-            lines.append(f'    {{ "{text_escaped}", {label["pos_x"]}, {label["pos_y"]}, {label["width"]}, {label["height"]}, {baseline_offset}, {label["anchor"]}, {style_id}, {font_id}, {visible} }},')
+            shadow = 'true' if label.get('shadow', False) else 'false'
+            shadow_dx = label.get('shadow_dx', 0)
+            shadow_dy = label.get('shadow_dy', 0)
+            shadow_style_id = label.get('shadow_style_id', 0)
+            lines.append(f'    {{ "{text_escaped}", {label["pos_x"]}, {label["pos_y"]}, {label["width"]}, {label["height"]}, {baseline_offset}, {label["anchor"]}, {style_id}, {font_id}, {visible}, {shadow}, {shadow_dx}, {shadow_dy}, {shadow_style_id} }},')
         canvas_label_defs[canvas_name] = {
             'defs': '\n'.join(lines),
             'count': len(canvas.get('labels', []))
