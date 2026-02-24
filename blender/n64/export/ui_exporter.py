@@ -76,9 +76,9 @@ def detect_ui_canvas(exporter):
             with open(json_path, 'r', encoding='utf-8') as f:
                 canvas_data = json.load(f)
 
-            canvas_info = canvas_data.get('canvas', {})
-            canvas_width = canvas_info.get('width', 320)
-            canvas_height = canvas_info.get('height', 240)
+            # N64 always uses 320x240 display resolution
+            canvas_width = 320
+            canvas_height = 240
 
             labels = []
             images = []
@@ -626,10 +626,9 @@ def write_canvas_h(exporter):
     with open(tmpl_path, 'r', encoding='utf-8') as f:
         tmpl_content = f.read()
 
-    # Get canvas dimensions from first canvas
-    first_canvas = next(iter(exporter.ui_canvas_data.values()))
-    canvas_width = first_canvas['width']
-    canvas_height = first_canvas['height']
+    # N64 always uses 320x240 display resolution
+    canvas_width = 320
+    canvas_height = 240
 
     # Build key-only label defines
     label_defines_lines = []
