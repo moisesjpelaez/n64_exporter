@@ -64,6 +64,7 @@ def _export_mesh_to_gltf(obj, output_path):
         filepath=output_path,
         export_format='GLTF_SEPARATE',
         export_extras=True,
+        export_apply=True,
         use_selection=True,
         export_yup=True
     )
