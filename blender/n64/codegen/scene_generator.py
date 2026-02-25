@@ -203,9 +203,30 @@ def generate_object_block(objects: List[Dict], trait_info: dict, scene_name: str
         lines.append(f'    {prefix}.bounds_max = {_fmt_vec3(bmax)};')
 
         # Initialize cached world AABB (will be updated when transform.dirty > 0)
-        # bounds are pre-scaled to world coordinates, just add position
-        world_min = [bmin[a] + pos[a] for a in range(3)]
-        world_max = [bmax[a] + pos[a] for a in range(3)]
+        # Rotate the local AABB by the object's quaternion using Arvo's method
+        # to get a correct world-space AABB for frustum culling.
+        rot = obj.get("rot", [0, 0, 0, 1])  # XYZW quaternion
+        qx, qy, qz, qw = rot[0], rot[1], rot[2], rot[3]
+        xx, yy, zz = qx*qx, qy*qy, qz*qz
+        xy, xz, yz = qx*qy, qx*qz, qy*qz
+        wx, wy, wz = qw*qx, qw*qy, qw*qz
+        m = [
+            [1.0 - 2.0*(yy+zz), 2.0*(xy-wz),       2.0*(xz+wy)],
+            [2.0*(xy+wz),       1.0 - 2.0*(xx+zz),  2.0*(yz-wx)],
+            [2.0*(xz-wy),       2.0*(yz+wx),        1.0 - 2.0*(xx+yy)]
+        ]
+        world_min = list(pos)
+        world_max = list(pos)
+        for i in range(3):
+            for j in range(3):
+                a = m[i][j] * bmin[j]
+                b = m[i][j] * bmax[j]
+                if a < b:
+                    world_min[i] += a
+                    world_max[i] += b
+                else:
+                    world_min[i] += b
+                    world_max[i] += a
         lines.append(f'    {prefix}.cached_world_aabb_min = {_fmt_vec3(world_min)};')
         lines.append(f'    {prefix}.cached_world_aabb_max = {_fmt_vec3(world_max)};')
 

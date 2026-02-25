@@ -46,11 +46,41 @@ void renderer_update_objects(ArmScene *scene) {
 		int mat_idx = obj->is_static ? 0 : frameIdx;
 		t3d_mat4fp_from_srt(&obj->model_mat[mat_idx], obj->transform.scale.v, obj->transform.rot.v, obj->transform.loc.v);
 
-		// Update cached world-space AABB for frustum culling
-		// bounds_min/max are pre-scaled to world coordinates (Blender units), matching position and frustum coordinate space.
-		for (int a = 0; a < 3; a++) {
-			obj->cached_world_aabb_min.v[a] = obj->bounds_min.v[a] + obj->transform.loc.v[a];
-			obj->cached_world_aabb_max.v[a] = obj->bounds_max.v[a] + obj->transform.loc.v[a];
+		// Update cached world-space AABB for frustum culling.
+		// bounds_min/max are pre-scaled to world coordinates (Blender units).
+		// We must rotate the local AABB by the object's quaternion to get a
+		// correct world-space AABB. Uses Arvo's method: iterate over the 3x3
+		// rotation matrix elements and accumulate min/max contributions.
+		{
+			float qx = obj->transform.rot.v[0];
+			float qy = obj->transform.rot.v[1];
+			float qz = obj->transform.rot.v[2];
+			float qw = obj->transform.rot.v[3];
+			float xx = qx*qx, yy = qy*qy, zz = qz*qz;
+			float xy = qx*qy, xz = qx*qz, yz = qy*qz;
+			float wx = qw*qx, wy = qw*qy, wz = qw*qz;
+			// Rotation matrix from quaternion
+			float m[3][3] = {
+				{ 1.0f - 2.0f*(yy+zz), 2.0f*(xy-wz),         2.0f*(xz+wy)         },
+				{ 2.0f*(xy+wz),         1.0f - 2.0f*(xx+zz),  2.0f*(yz-wx)         },
+				{ 2.0f*(xz-wy),         2.0f*(yz+wx),         1.0f - 2.0f*(xx+yy)  }
+			};
+			// Start from position, accumulate rotated AABB extents
+			for (int i = 0; i < 3; i++) {
+				obj->cached_world_aabb_min.v[i] = obj->transform.loc.v[i];
+				obj->cached_world_aabb_max.v[i] = obj->transform.loc.v[i];
+				for (int j = 0; j < 3; j++) {
+					float a = m[i][j] * obj->bounds_min.v[j];
+					float b = m[i][j] * obj->bounds_max.v[j];
+					if (a < b) {
+						obj->cached_world_aabb_min.v[i] += a;
+						obj->cached_world_aabb_max.v[i] += b;
+					} else {
+						obj->cached_world_aabb_min.v[i] += b;
+						obj->cached_world_aabb_max.v[i] += a;
+					}
+				}
+			}
 		}
 
 		obj->transform.dirty--;
