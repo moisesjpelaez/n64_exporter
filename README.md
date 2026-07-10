@@ -70,5 +70,3 @@ Supported features:
 
 ## License
 This project is licensed under the terms of the zlib License. See the [LICENSE](LICENSE.md) file for details.
-
-[Support the project](https://moisesjpelaez.gumroad.com/l/armor_64).
