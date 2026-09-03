@@ -157,8 +157,6 @@ def _unregister_state_flag():
 
 def _register_runtime_enum():
     """Extend arm_runtime EnumProperty to include 'Ares'."""
-    from arm import assets
-
     # Save current value if it exists
     saved_value = None
     if 'Arm' in bpy.data.worlds:
@@ -173,8 +171,7 @@ def _register_runtime_enum():
                ('Ares', 'Ares', 'Ares')],
         name="Runtime",
         description="Runtime to use when launching the game",
-        default='Krom',
-        update=assets.invalidate_shader_cache
+        default='Krom'
     )
 
     # Restore previous value
@@ -187,8 +184,6 @@ def _register_runtime_enum():
 
 def _unregister_runtime_enum():
     """Restore arm_runtime to original 2-item list."""
-    from arm import assets
-
     saved_value = None
     if 'Arm' in bpy.data.worlds:
         try:
@@ -203,8 +198,7 @@ def _unregister_runtime_enum():
                ('Browser', 'Browser', 'Browser')],
         name="Runtime",
         description="Runtime to use when launching the game",
-        default='Krom',
-        update=assets.invalidate_shader_cache
+        default='Krom'
     )
 
     if saved_value and 'Arm' in bpy.data.worlds:
@@ -220,12 +214,10 @@ def _unregister_runtime_enum():
 
 def _update_gapi_n64(self, context):
     import arm.utils
-    from arm import assets
     n64_build_dir = arm.utils.get_fp_build() + '/n64-build'
     if os.path.isdir(n64_build_dir):
         shutil.rmtree(n64_build_dir, onerror=lambda f, p, e: (os.chmod(p, 0o777), f(p)))
     bpy.data.worlds['Arm'].arm_recompile = True
-    assets.invalidate_compiled_data(self, context)
 
 
 def _register_export_target():
@@ -506,8 +498,6 @@ def _register_operator_patches():
         wrd = bpy.data.worlds['Arm']
         if wrd.arm_runtime == 'Ares':
             state.is_n64 = True
-            if not wrd.arm_cache_build:
-                bpy.ops.arm.clean_project()
         return _originals['play_execute'](self, context)
 
     props_ui.ArmoryPlayButton.execute = _patched_play_execute
@@ -523,8 +513,6 @@ def _register_operator_patches():
         item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
         if item.arm_project_target == 'n64':
             state.is_n64 = True
-            if not wrd.arm_cache_build:
-                bpy.ops.arm.clean_project()
 
             # We need to override the target to 'custom' for Haxe macro execution.
             # Save the original target, set to custom, call the build pipeline, then restore.
@@ -536,7 +524,6 @@ def _register_operator_patches():
                     wrd.arm_rplist_index = i
                     break
 
-            assets.invalidate_shader_cache(None, None)
             assets.invalidate_enabled = False
             if wrd.arm_clear_on_compile:
                 os.system("cls")
@@ -561,8 +548,6 @@ def _register_operator_patches():
         item = wrd.arm_exporterlist[wrd.arm_exporterlist_index]
         if item.arm_project_target == 'n64':
             state.is_n64 = True
-            if not wrd.arm_cache_build:
-                bpy.ops.arm.clean_project()
 
             if item.arm_project_scene is None:
                 item.arm_project_scene = context.scene
@@ -891,12 +876,14 @@ class N64_OT_BuildTiny3d(bpy.types.Operator):
         # $(CURDIR) in -ffile-prefix-map which breaks when CWD has spaces.
         build_cmd = (
             f'cd "{tiny3d_path_posix}" && '
-            f'make CURDIR=. clean 2>/dev/null; '
+            f'make CURDIR=. clean; '
             f'make CURDIR=. -j4 && '
             f'make CURDIR=. install && '
-            f'(cd tools/gltf_importer && make CURDIR=. clean 2>/dev/null); '
+            f'(cd tools/gltf_importer && make CURDIR=. clean); '
             f'(cd tools/gltf_importer && make CURDIR=. -j4) && '
-            f'for d in examples/*/; do (cd "$d" && make T3D_INST="{n64_toolchain_path}/include" CURDIR=. -j4) || exit 1; done'
+            f'for d in examples/*/; do (cd "$d" && '
+            f'make T3D_INST="{n64_toolchain_path}/include" CURDIR=. clean; '
+            f'make T3D_INST="{n64_toolchain_path}/include" CURDIR=. -j4) || exit 1; done'
         )
         result = subprocess.run(
             [rf'{msys2_exe}', '--login', '-c', build_cmd],
